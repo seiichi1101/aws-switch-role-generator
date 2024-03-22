@@ -1,0 +1,1 @@
+# aws-switch-role-generator
