@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template for Creating Switch Role
+Parameters:
+  SourceAWSAccountId:
+    Type: String
+    Description: 'Source AWS Account ID'
+    AllowedPattern: '\d{12}'
+  SourceIAMUserName:
+    Type: String
+    Description: 'IAM User Name'
+    AllowedPattern: '[A-Za-z0-9+=,.@_-]{1,64}'
+  SourceIAMUserMFARequired:
+    Type: String
+    Description: 'IAM User MFA Required'
+    AllowedPattern: 'true|false'
+    Default: "true"
+  XXXTargetAWSAccountId:
+    Type: String
+    Description: '!!!Do Not Edit!!!'
+    AllowedPattern: '\d{12}|NONE'
+    Default: "NONE"
+  XXXBucketURL:
+    Type: String
+    Description: '!!!Do Not Edit!!!'
+
+Conditions:
+  CheckAccount: !Not [!Equals [!Ref XXXTargetAWSAccountId, "NONE"]]
+
+Resources:
+  AccountCheck:
+    Type: AWS::CloudFormation::Stack
+    Condition: CheckAccount
+    Properties:
+      TemplateURL: !Sub "${XXXBucketURL}/account-checker.yaml"
+      Parameters:
+        DesiredAccountId: !Ref XXXTargetAWSAccountId
+  SwitchedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - 'arn:aws:iam::'
+                    - Ref: SourceAWSAccountId
+                    - :user/
+                    - Ref: SourceIAMUserName
+            Action:
+              - sts:AssumeRole
+            Condition:
+              Bool:
+                aws:MultiFactorAuthPresent: !Ref SourceIAMUserMFARequired
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+      Path: /
+      RoleName:
+        !Sub "AdminSwitchRole-for-${SourceAWSAccountId}-${SourceIAMUserName}"
+Outputs:
+  IAMRoleArn:
+    Value:
+      Fn::GetAtt:
+        - SwitchedRole
+        - Arn
+  LinkForSwitchRole:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://signin.aws.amazon.com/switchrole?roleName=
+          - !Sub "AdminSwitchRole-for-${SourceAWSAccountId}-${SourceIAMUserName}"
+          - '&account='
+          - Ref: AWS::AccountId

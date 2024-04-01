@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Check Account ID by Lambda
+Parameters:
+  DesiredAccountId:
+    Type: String
+    AllowedPattern: '\d{12}'
+
+Resources:
+  CustomResource:
+    Type: Custom::AccountCheck
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LambdaFunction
+          - Arn
+      DesiredAccountId:
+        Ref: DesiredAccountId
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Role:
+        Fn::GetAtt:
+          - LambdaExecutionRole
+          - Arn
+      Runtime: python3.8
+      Code:
+        ZipFile:
+          Fn::Sub:
+            - |-
+              import json
+              import boto3
+              import cfnresponse
+
+              def lambda_handler(event, context):
+                  try:
+                      if event['RequestType'] == 'Delete':
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                          return
+
+                      desired_account_id = '${DesiredAccountId}'
+                      current_account_id = boto3.client('sts').get_caller_identity().get('Account')
+                      if current_account_id == desired_account_id:
+                          print("Account check succeeded.")
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                      else:
+                          print("Account check failed.")
+                          cfnresponse.send(event, context, cfnresponse.FAILED, {})
+                  except Exception as e:
+                      cfnresponse.send(event, context, cfnresponse.FAILED, {'Message': str(e)})
+            - DesiredAccountId: !Ref DesiredAccountId
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - sts:GetCallerIdentity
+                Resource: '*'
