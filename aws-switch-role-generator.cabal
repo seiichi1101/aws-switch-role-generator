@@ -37,6 +37,7 @@ library
       base >=4.7 && <5
     , directory
     , dotenv
+    , filepath ==1.4.*
     , text
   default-language: Haskell2010
 
@@ -54,6 +55,7 @@ executable aws-switch-role-generator-exe
     , base >=4.7 && <5
     , directory
     , dotenv
+    , filepath ==1.4.*
     , text
   default-language: Haskell2010
 
@@ -72,5 +74,6 @@ test-suite aws-switch-role-generator-test
     , base >=4.7 && <5
     , directory
     , dotenv
+    , filepath ==1.4.*
     , text
   default-language: Haskell2010
